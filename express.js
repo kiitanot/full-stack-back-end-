@@ -36,11 +36,18 @@ const logger = (req, res, next) => {
 // Apply logger middleware globally
 app.use(logger);
 
-// Static file middleware for images with error handling
-const imageDirectory = path.resolve(__dirname, '../fs_coursework/images');
-console.log("Image directory:", imageDirectory);  // Log the resolved directory for debugging
 
-app.use('/images', express.static(imageDirectory));
+
+// Static file middleware for images with error handling
+const imageDirectory = path.resolve(__dirname, '/images'); // Adjust this path based on your server structure
+console.log("Image directory:", imageDirectory);
+
+app.use('/images', express.static(imageDirectory, {
+  setHeaders: (res, path) => {
+    console.log(`Serving image: ${path}`);
+  }
+}));
+
 
 
 
@@ -142,7 +149,7 @@ app.get('/search', async (req, res) => {
 
 const port = process.env.PORT || 3000;
 app.get('/', (req, res) => {
-  res.send('Hello World!')
+  res.send('Welcome!')
 })
 
 app.listen(port, () => {
