@@ -43,16 +43,10 @@ const logger = (req, res, next) => {
 app.use(logger);
 
 // Static file middleware for images with error handling
+const imageDirectory = path.resolve(__dirname, '../fs_coursework/images');
+console.log("Image directory:", imageDirectory);  // Log the resolved directory for debugging
 
-app.use('/images', express.static(path.resolve(__dirname, '../fs_coursework/images')));
-
-
-app.use((req, res, next) => {
-  if (req.url.startsWith('/images/')) {
-    return res.status(404).send('Image not found');
-  }
-  next();
-});
+app.use('/images', express.static(imageDirectory));
 
 
 // GET route for products
