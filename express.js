@@ -77,18 +77,11 @@ app.post('/orders', async (req, res) => {
   const { productIds, customerName, phoneNumber } = req.body;
 
   // Validate input
-  if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !customerName || phoneNumber) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  // Optionally, validate the phone number format (you can adjust this as needed)
-  const phoneRegex = /^[0-9]{11}$/;
-  if (!phoneRegex.test(phoneNumber)) {
-    return res.status(400).json({ error: 'Invalid phone number format' });
+  if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !customerName || !phoneNumber) {
+    return res.status(400).json({ error: 'Missing required fields: customerName, or phoneNumber' });
   }
 
   try {
-    // Create the order with the phone number
     const order = { productIds, customerName, phoneNumber, date: new Date() };
     const orderResult = await ordersCollection.insertOne(order);
 
