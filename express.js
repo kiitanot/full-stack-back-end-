@@ -146,7 +146,11 @@ app.get('/search', async (req, res) => {
 });
 
 // Start the server
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+const port = process.env.PORT || 3000;
+app.get('/', (req, res) => {
+  res.send('Hello World!')
+})
+
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`)
 });
