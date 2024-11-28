@@ -43,15 +43,17 @@ const logger = (req, res, next) => {
 app.use(logger);
 
 // Static file middleware for images with error handling
-const imagesDirectory = path.join(__dirname, '../fs coursework/images');
-app.use('/images', (req, res, next) => {
-  const filePath = path.join(imagesDirectory, req.url);
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    res.status(404).json({ error: 'Image not found' });
+
+app.use('/images', express.static(path.resolve(__dirname, '../fs_coursework/images')));
+
+
+app.use((req, res, next) => {
+  if (req.url.startsWith('/images/')) {
+    return res.status(404).send('Image not found');
   }
+  next();
 });
+
 
 // GET route for products
 app.get('/products', async (req, res) => {
@@ -73,47 +75,81 @@ app.get('/products', async (req, res) => {
 app.post('/orders', async (req, res) => {
   const { productIds, customerName } = req.body;
 
+  // Validate input
   if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !customerName) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
+    // Step 1: Check availability for each product (before decrementing)
+    const products = await productsCollection.find({
+      _id: { $in: productIds.map(id => new ObjectId(id)) }
+    }).toArray();
+
+    // Check if any of the products are out of stock
+    for (let product of products) {
+      if (!product || product.availableInventory <= 0) {
+        return res.status(400).json({ error: `Product ${product.title} is out of stock` });
+      }
+    }
+
+    // Step 2: Decrement stock for each product ordered
+    for (let productId of productIds) {
+      const decrementResult = await productsCollection.updateOne(
+        { _id: new ObjectId(productId) },
+        { $inc: { availableInventory: -1 } } // Decrease by 1 for each product ordered
+      );
+
+      if (decrementResult.modifiedCount === 0) {
+        return res.status(500).json({ error: `Failed to decrement stock for product ${productId}` });
+      }
+    }
+
+    // Step 3: Create the order after updating stock
     const order = { productIds, customerName, date: new Date() };
     const result = await ordersCollection.insertOne(order);
+
+    // Respond with success and the order ID
     res.status(201).json({ message: 'Order created', orderId: result.insertedId });
+
   } catch (error) {
+    console.error('Failed to create order:', error);
     res.status(500).json({ error: 'Failed to create order' });
   }
 });
 
-// PUT route to update product stock
+
+
+
+// PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const { availableStock } = req.body;
-
+  const updateData = req.body; // Accept entire update payload
 
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
-  if (availableStock == null || typeof availableStock !== 'number' || availableStock < 0) {
-    return res.status(400).json({ error: 'Invalid stock value' });
+  if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
+    return res.status(400).json({ error: 'Invalid update payload' });
   }
 
   try {
     const result = await productsCollection.updateOne(
       { _id: new ObjectId(id) },
-      { $set: { availableStock } }
+      { $set: updateData } // Dynamically apply updates
     );
 
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    res.json({ message: 'Product stock updated successfully' });
+    res.json({ message: 'Product updated successfully', updatedFields: updateData });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update product stock' });
+    res.status(500).json({ error: 'Failed to update product' });
   }
 });
+
+
 
 // GET route for searching products
 app.get('/search', async (req, res) => {
