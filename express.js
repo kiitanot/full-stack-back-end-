@@ -117,25 +117,20 @@ app.put('/products/:id', async (req, res) => {
 });
 
 
-// Search Route
-app.get('/search', async (req, res) => {
-  const { query } = req.query;  // Extract the search query from the query parameters
-  try {
-    // Perform the search using MongoDB's native query syntax (Case-insensitive search)
-    const products = await productsCollection.find({
-      $or: [
-        { title: { $regex: query, $options: 'i' } },  
-        { location: { $regex: query, $options: 'i' } },  
-        { price: { $regex: query, $options: 'i' } },  
-        { availability: { $regex: query, $options: 'i' } } 
-      ]
-    }).toArray();  
+// Search
+app.get('/search', async (req,res) =>{
+  const searchTerm = req.query.searchTerm?.toLowercase() || '';
 
-    res.json(products);  
-  } catch (err) {
-    console.error('Error fetching products:', err); 
-    res.status(500).send({ error: 'Server error' });  
-  }
+  const results = await db.collection('products').find({
+    $or: [
+        {subject: { $regex: searchTerm, $options: 'i'}},
+        {location: { $regex: searchTerm, $options: 'i'}},
+        {price: { $regex: searchTerm, $options: 'i'}},
+        {avalability: { $regex: searchTerm, $options: 'i'}}
+    ]
+  }).toArray();
+
+  res.json(results); 
 });
     
 
