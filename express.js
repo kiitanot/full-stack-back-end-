@@ -133,7 +133,7 @@ app.get('/search', async (req, res) => {
     // Filter products based on search term matching the specified fields
     const results = await productsCollection.find({
       $or: [
-        { subject: { $regex: searchTerm, $options: 'i' } },
+        { title: { $regex: searchTerm, $options: 'i' } },
         { location: { $regex: searchTerm, $options: 'i' } },
         { price: { $regex: searchTerm, $options: 'i' } },
         { availability: { $regex: searchTerm, $options: 'i' } }
