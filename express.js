@@ -84,10 +84,6 @@ app.post('/orders', async (req, res) => {
 
 
 
-
-
-
-
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
@@ -102,7 +98,7 @@ app.put('/products/:id', async (req, res) => {
 
   try {
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },
+      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
       { $set: updateData } // Dynamically apply updates
     );
 
@@ -117,25 +113,26 @@ app.put('/products/:id', async (req, res) => {
 });
 
 
+
+
 // Search
 app.get('/search', async (req, res) => {
-  try {
-    const searchTerm = req.query.searchTerm?.toLowerCase() || '';
+  const searchTerm = req.query.searchTerm?.toLowerCase() || ''; // Correcting toLowerCase()
 
-    // MongoDB query
-    const results = await db.collection('products').find({
+  try {
+    const results = await productsCollection.find({
       $or: [
         { subject: { $regex: searchTerm, $options: 'i' } },
         { location: { $regex: searchTerm, $options: 'i' } },
-        { availability: { $regex: searchTerm, $options: 'i' } },
-        { price: { $regex: new RegExp(`^${searchTerm}`, 'i') } } // Adjusted to handle numeric fields
+        { price: { $regex: searchTerm, $options: 'i' } },
+        { availability: { $regex: searchTerm, $options: 'i' } }
       ]
     }).toArray();
 
     res.json(results);
   } catch (error) {
-    console.error('Error during search:', error);
-    res.status(500).json({ error: 'An error occurred while processing your search' });
+    console.error('Search error:', error);
+    res.status(500).json({ error: 'Error searching for products' });
   }
 });
 
