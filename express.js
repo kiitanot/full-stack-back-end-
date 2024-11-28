@@ -81,42 +81,19 @@ app.post('/orders', async (req, res) => {
   }
 
   try {
-    // Step 1: Check availability for each product (before decrementing)
-    const products = await productsCollection.find({
-      _id: { $in: productIds.map(id => new ObjectId(id)) }
-    }).toArray();
-
-    // Check if any of the products are out of stock
-    for (let product of products) {
-      if (!product || product.availableInventory <= 0) {
-        return res.status(400).json({ error: `Product ${product.title} is out of stock` });
-      }
-    }
-
-    // Step 2: Decrement stock for each product ordered
-    for (let productId of productIds) {
-      const decrementResult = await productsCollection.updateOne(
-        { _id: new ObjectId(productId) },
-        { $inc: { availableInventory: -1 } } // Decrease by 1 for each product ordered
-      );
-
-      if (decrementResult.modifiedCount === 0) {
-        return res.status(500).json({ error: `Failed to decrement stock for product ${productId}` });
-      }
-    }
-
-    // Step 3: Create the order after updating stock
+    // Create the order
     const order = { productIds, customerName, date: new Date() };
-    const result = await ordersCollection.insertOne(order);
+    const orderResult = await ordersCollection.insertOne(order);
 
     // Respond with success and the order ID
-    res.status(201).json({ message: 'Order created', orderId: result.insertedId });
-
+    res.status(201).json({ message: 'Order created successfully', orderId: orderResult.insertedId });
   } catch (error) {
-    console.error('Failed to create order:', error);
-    res.status(500).json({ error: 'Failed to create order' });
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: 'An error occurred while processing the order' });
   }
 });
+
+
 
 
 
