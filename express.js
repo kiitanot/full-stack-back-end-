@@ -49,6 +49,14 @@ console.log("Image directory:", imageDirectory);  // Log the resolved directory 
 app.use('/images', express.static(imageDirectory));
 
 
+app.use((req, res, next) => {
+  if (req.url.startsWith('/images/')) {
+    return res.status(404).send('Image not found');
+  }
+  next();
+});
+
+
 // GET route for products
 app.get('/products', async (req, res) => {
   if (!productsCollection) {
