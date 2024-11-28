@@ -118,20 +118,27 @@ app.put('/products/:id', async (req, res) => {
 
 
 // Search
-app.get('/search', async (req,res) =>{
-  const searchTerm = req.query.searchTerm?.toLowercase() || '';
+app.get('/search', async (req, res) => {
+  try {
+    const searchTerm = req.query.searchTerm?.toLowerCase() || '';
 
-  const results = await db.collection('products').find({
-    $or: [
-        {subject: { $regex: searchTerm, $options: 'i'}},
-        {location: { $regex: searchTerm, $options: 'i'}},
-        {price: { $regex: searchTerm, $options: 'i'}},
-        {avalability: { $regex: searchTerm, $options: 'i'}}
-    ]
-  }).toArray();
+    // MongoDB query
+    const results = await db.collection('products').find({
+      $or: [
+        { subject: { $regex: searchTerm, $options: 'i' } },
+        { location: { $regex: searchTerm, $options: 'i' } },
+        { availability: { $regex: searchTerm, $options: 'i' } },
+        { price: { $regex: new RegExp(`^${searchTerm}`, 'i') } } // Adjusted to handle numeric fields
+      ]
+    }).toArray();
 
-  res.json(results); 
+    res.json(results);
+  } catch (error) {
+    console.error('Error during search:', error);
+    res.status(500).json({ error: 'An error occurred while processing your search' });
+  }
 });
+
     
 
 // Start the server
