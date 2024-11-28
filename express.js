@@ -38,17 +38,19 @@ app.use(logger);
 
 
 
-// Static file middleware for images with error handling
-const imageDirectory = path.resolve(__dirname, '/images'); // Adjust this path based on your server structure
-console.log("Image directory:", imageDirectory);
+app.use('/images', (req, res, next) => {
+  const imagePath = path.join(__dirname, '/images', req.url); // Ensure 'lesson-images' folder exists and images are inside it
 
-app.use('/images', express.static(imageDirectory, {
-  setHeaders: (res, path) => {
-    console.log(`Serving image: ${path}`);
-  }
-}));
-
-
+  // Check if the file exists
+  fs.access(imagePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      // If the file does not exist, return an error message
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    // If the file exists, serve the file
+    res.sendFile(imagePath);
+  });
+});
 
 
 // GET route for products
