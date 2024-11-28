@@ -20,12 +20,6 @@ MongoClient.connect(uri)
     const db = client.db(dbName);  // Connecting to the 'WebstoreCluster' database
     productsCollection = db.collection('products'); // "products" collection
     ordersCollection = db.collection('orders'); // "orders" collection
-
-    // Create indexes for sorting and searching
-    productsCollection.createIndex({ title: 'text', description: 'text', location: 'text' });
-    productsCollection.createIndex({ price: 1 });
-    productsCollection.createIndex({ availableInventory: 1 });
-    productsCollection.createIndex({ location: 1 });
   })
   .catch((err) => console.error('Failed to connect to MongoDB:', err));
 
@@ -48,13 +42,6 @@ console.log("Image directory:", imageDirectory);  // Log the resolved directory 
 
 app.use('/images', express.static(imageDirectory));
 
-
-app.use((req, res, next) => {
-  if (req.url.startsWith('/images/')) {
-    return res.status(404).send('Image not found');
-  }
-  next();
-});
 
 
 // GET route for products
@@ -130,23 +117,27 @@ app.put('/products/:id', async (req, res) => {
 });
 
 
-
-// GET route for searching products
+// Search Route
 app.get('/search', async (req, res) => {
-  const { query } = req.query;
+  const { query } = req.query;  // Extract the search query from the query parameters
   try {
+    // Perform the search using MongoDB's native query syntax (Case-insensitive search)
     const products = await productsCollection.find({
-      $text: { $search: query } // Full-text search
-    }).toArray();
+      $or: [
+        { title: { $regex: query, $options: 'i' } },  
+        { location: { $regex: query, $options: 'i' } },  
+        { price: { $regex: query, $options: 'i' } },  
+        { availability: { $regex: query, $options: 'i' } } 
+      ]
+    }).toArray();  
 
-    if (products.length === 0) {
-      return res.status(404).json({ error: 'No products found matching the search criteria' });
-    }
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to search products' });
+    res.json(products);  
+  } catch (err) {
+    console.error('Error fetching products:', err); 
+    res.status(500).send({ error: 'Server error' });  
   }
 });
+    
 
 // Start the server
 
