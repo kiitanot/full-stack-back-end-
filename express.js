@@ -71,18 +71,25 @@ app.get('/products', async (req, res) => {
   }
 });
 
+
 // POST route for orders
 app.post('/orders', async (req, res) => {
-  const { productIds, customerName } = req.body;
+  const { productIds, customerName, phoneNumber } = req.body;
 
   // Validate input
-  if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !customerName) {
-    return res.status(400).json({ error: 'Missing required fields' });
+  if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !customerName || !phoneNumber) {
+    return res.status(400).json({ error: 'Missing required fields: productIds, customerName, or phoneNumber' });
+  }
+
+  // Optionally, validate the phone number format (you can adjust this as needed)
+  const phoneRegex = /^[0-9]{11}$/;
+  if (!phoneRegex.test(phoneNumber)) {
+    return res.status(400).json({ error: 'Invalid phone number format' });
   }
 
   try {
-    // Create the order
-    const order = { productIds, customerName, date: new Date() };
+    // Create the order with the phone number
+    const order = { productIds, customerName, phoneNumber, date: new Date() };
     const orderResult = await ordersCollection.insertOne(order);
 
     // Respond with success and the order ID
@@ -92,6 +99,7 @@ app.post('/orders', async (req, res) => {
     res.status(500).json({ error: 'An error occurred while processing the order' });
   }
 });
+
 
 
 
@@ -146,6 +154,7 @@ app.get('/search', async (req, res) => {
 });
 
 // Start the server
+
 const port = process.env.PORT || 3000;
 app.get('/', (req, res) => {
   res.send('Hello World!')
