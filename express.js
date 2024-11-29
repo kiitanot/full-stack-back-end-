@@ -96,7 +96,7 @@ app.post('/orders', async (req, res) => {
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body; // Accept entire update payload
+  const updateData = req.body;
 
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
@@ -107,8 +107,10 @@ app.put('/products/:id', async (req, res) => {
 
   try {
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
-      { $set: updateData } // Dynamically apply updates
+      { _id: new ObjectId(id) }, 
+      { 
+        $inc: { availableInventory: -updateData.availableInventory } // Subtract from availableInventory
+      }
     );
 
     if (result.matchedCount === 0) {
@@ -120,6 +122,7 @@ app.put('/products/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
+
 
 
 
