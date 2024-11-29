@@ -120,30 +120,48 @@ app.post('/orders', async (req, res) => {
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body; // Accept entire update payload
+  const { availableInventory } = req.body; // Expecting only availableInventory in the payload
 
+  // Check if the product ID is valid
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
-  if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
-    return res.status(400).json({ error: 'Invalid update payload' });
+
+  // Validate that the availableInventory is a number and not negative
+  if (typeof availableInventory !== 'number' || availableInventory < 0) {
+    return res.status(400).json({ error: 'Invalid inventory count' });
   }
 
   try {
+    // Find the product by its ID
+    const product = await productsCollection.findOne({ _id: new ObjectId(id) });
+
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Ensure that inventory does not go below zero
+    if (availableInventory < product.availableInventory) {
+      return res.status(400).json({ error: 'Cannot reduce inventory below current stock' });
+    }
+
+    // Update the available inventory
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
-      { $set: updateData } // Dynamically apply updates
+      { _id: new ObjectId(id) },
+      { $set: { availableInventory } }
     );
 
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    res.json({ message: 'Product updated successfully', updatedFields: updateData });
+    res.json({ message: 'Product updated successfully', updatedFields: { availableInventory } });
   } catch (error) {
+    console.error('Error updating product:', error);
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
+
 
 
 
