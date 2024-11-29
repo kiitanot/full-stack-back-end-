@@ -25,8 +25,6 @@ MongoClient.connect(uri)
 
 app.use(cors());
 app.use(express.json());
-
-
 // Logger middleware
 const logger = (req, res, next) => {
   const now = new Date();
@@ -35,45 +33,23 @@ const logger = (req, res, next) => {
   next();
 };
 
+// Apply logger middleware globally
 app.use(logger);
 
-async function ensureDbConnection(req, res, next) {
-  if (!productsCollection || !ordersCollection) {
-    return res.status(500).json({ error: 'Database connection not established' });
-  }
-  next();
-}
 
-app.use(ensureDbConnection);
 
-async function connectToDatabase(retries = 5, delay = 2000) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const client = await MongoClient.connect(uri);
-      console.log('Connected to MongoDB');
-      const db = client.db(dbName);
-      productsCollection = db.collection('products');
-      ordersCollection = db.collection('orders');
-      return; // Exit on successful connection
-    } catch (error) {
-      console.error('MongoDB connection failed. Retrying...', error);
-      if (i < retries - 1) await new Promise((res) => setTimeout(res, delay));
+app.use('/images', (req, res, next) => {
+  const imagePath = path.join(__dirname, '/images', req.url); // Ensure 'lesson-images' folder exists and images are inside it
+
+  // Check if the file exists
+  fs.access(imagePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      // If the file does not exist, return an error message
+      return res.status(404).json({ error: 'Image not found' });
     }
-  }
-  throw new Error('Failed to connect to MongoDB after retries');
-}
-
-connectToDatabase().catch(console.error);
-
-
-//image static file
-
-// Serve static files in the "images" directory
-app.use('/images', express.static(path.join(__dirname, 'images')));
-
-// Optional: Add middleware to handle 404 for unmatched static files
-app.use('/images', (req, res) => {
-  res.status(404).json({ error: 'Image not found' });
+    // If the file exists, serve the file
+    res.sendFile(imagePath);
+  });
 });
 
 
@@ -120,44 +96,27 @@ app.post('/orders', async (req, res) => {
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const { availableInventory } = req.body; // Expecting only availableInventory in the payload
+  const updateData = req.body; // Accept entire update payload
 
-  // Check if the product ID is valid
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
-
-  // Validate that the availableInventory is a number and not negative
-  if (typeof availableInventory !== 'number' || availableInventory < 0) {
-    return res.status(400).json({ error: 'Invalid inventory count' });
+  if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
+    return res.status(400).json({ error: 'Invalid update payload' });
   }
 
   try {
-    // Find the product by its ID
-    const product = await productsCollection.findOne({ _id: new ObjectId(id) });
-
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-
-    // Ensure that inventory does not go below zero
-    if (availableInventory < product.availableInventory) {
-      return res.status(400).json({ error: 'Cannot reduce inventory below current stock' });
-    }
-
-    // Update the available inventory
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { availableInventory } }
+      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
+      { $set: updateData } // Dynamically apply updates
     );
 
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    res.json({ message: 'Product updated successfully', updatedFields: { availableInventory } });
+    res.json({ message: 'Product updated successfully', updatedFields: updateData });
   } catch (error) {
-    console.error('Error updating product:', error);
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
@@ -166,6 +125,7 @@ app.put('/products/:id', async (req, res) => {
 
 
 // Search
+// Search for products based on the search term
 app.get('/search', async (req, res) => {
   const searchTerm = req.query.searchTerm?.toLowerCase() || ''; // Capture search term from query parameters and convert to lowercase
 
@@ -175,8 +135,7 @@ app.get('/search', async (req, res) => {
       $or: [
         { title: { $regex: searchTerm, $options: 'i' } },
         { location: { $regex: searchTerm, $options: 'i' } },
-        { price: { $eq: parseFloat(searchTerm) } },
-        { availability: { $eq: searchTerm } }
+        { price: { $eq: parseFloat(searchTerm) } }
       ]
     }).toArray();
 
