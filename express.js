@@ -159,7 +159,7 @@ app.get('/search', async (req, res) => {
         { title: { $regex: searchTerm, $options: 'i' } },
         { location: { $regex: searchTerm, $options: 'i' } },
         { price: { $eq: parseFloat(searchTerm) } },
-        { availability: { $eq: parseFloat(searchTerm) } }
+        { availability: { $eq: searchTerm } }
       ]
     }).toArray();
 
