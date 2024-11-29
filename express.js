@@ -25,6 +25,8 @@ MongoClient.connect(uri)
 
 app.use(cors());
 app.use(express.json());
+
+
 // Logger middleware
 const logger = (req, res, next) => {
   const now = new Date();
@@ -33,23 +35,45 @@ const logger = (req, res, next) => {
   next();
 };
 
-// Apply logger middleware globally
 app.use(logger);
 
+async function ensureDbConnection(req, res, next) {
+  if (!productsCollection || !ordersCollection) {
+    return res.status(500).json({ error: 'Database connection not established' });
+  }
+  next();
+}
 
+app.use(ensureDbConnection);
 
-app.use('/images', (req, res, next) => {
-  const imagePath = path.join(__dirname, '/images', req.url); // Ensure 'lesson-images' folder exists and images are inside it
-
-  // Check if the file exists
-  fs.access(imagePath, fs.constants.F_OK, (err) => {
-    if (err) {
-      // If the file does not exist, return an error message
-      return res.status(404).json({ error: 'Image not found' });
+async function connectToDatabase(retries = 5, delay = 2000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const client = await MongoClient.connect(uri);
+      console.log('Connected to MongoDB');
+      const db = client.db(dbName);
+      productsCollection = db.collection('products');
+      ordersCollection = db.collection('orders');
+      return; // Exit on successful connection
+    } catch (error) {
+      console.error('MongoDB connection failed. Retrying...', error);
+      if (i < retries - 1) await new Promise((res) => setTimeout(res, delay));
     }
-    // If the file exists, serve the file
-    res.sendFile(imagePath);
-  });
+  }
+  throw new Error('Failed to connect to MongoDB after retries');
+}
+
+connectToDatabase().catch(console.error);
+
+
+//image static file
+
+// Serve static files in the "images" directory
+app.use('/images', express.static(path.join(__dirname, 'images')));
+
+// Optional: Add middleware to handle 404 for unmatched static files
+app.use('/images', (req, res) => {
+  res.status(404).json({ error: 'Image not found' });
 });
 
 
@@ -135,8 +159,8 @@ app.get('/search', async (req, res) => {
       $or: [
         { title: { $regex: searchTerm, $options: 'i' } },
         { location: { $regex: searchTerm, $options: 'i' } },
-        { price: { $regex: searchTerm, $options: 'i' } },
-        { availability: { $regex: searchTerm, $options: 'i' } }
+        { price: { $eq: parseFloat(searchTerm) } },
+        { availability: { $eq: parseFloat(searchTerm) } }
       ]
     }).toArray();
 
