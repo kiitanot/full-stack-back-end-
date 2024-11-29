@@ -147,7 +147,6 @@ app.put('/products/:id', async (req, res) => {
 
 
 
-
 // Search
 // Search for products based on the search term
 app.get('/search', async (req, res) => {
