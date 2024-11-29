@@ -74,50 +74,76 @@ app.use('/images', express.static(path.join(__dirname, 'images')));
 // Optional: Add middleware to handle 404 for unmatched static files
 app.use('/images', (req, res) => {
   res.status(404).json({ error: 'Image not found' });
-});app.put('/products/:id', async (req, res) => {
-  const { id } = req.params;
-  const { availableInventory } = req.body; // Expecting only availableInventory in the payload
+});
 
-  // Check if the product ID is valid
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ error: 'Invalid product ID' });
+
+// GET route for products
+app.get('/products', async (req, res) => {
+  if (!productsCollection) {
+    return res.status(500).json({ error: 'Database not initialized' });
   }
+  try {
+    const products = await productsCollection.find().toArray();
+    if (products.length === 0) {
+      return res.status(404).json({ error: 'No products found' });
+    }
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
 
-  // Validate that the availableInventory is a number and not negative
-  if (typeof availableInventory !== 'number' || availableInventory < 0) {
-    return res.status(400).json({ error: 'Invalid inventory count' });
+
+// POST route for orders
+app.post('/orders', async (req, res) => {
+  const { productIds, customerName, phoneNumber } = req.body;
+
+  // Validate input
+  if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !customerName || !phoneNumber) {
+    return res.status(400).json({ error: 'Missing required fields: customerName, or phoneNumber' });
   }
 
   try {
-    // Find the product by its ID
-    const product = await productsCollection.findOne({ _id: new ObjectId(id) });
+    const order = { productIds, customerName, phoneNumber, date: new Date() };
+    const orderResult = await ordersCollection.insertOne(order);
 
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
+    // Respond with success and the order ID
+    res.status(201).json({ message: 'Order created successfully', orderId: orderResult.insertedId });
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: 'An error occurred while processing the order' });
+  }
+});
 
-    // Ensure that inventory does not go below zero
-    if (availableInventory < product.availableInventory) {
-      return res.status(400).json({ error: 'Cannot reduce inventory below current stock' });
-    }
 
-    // Update the available inventory
+
+// PUT route to update any attribute of a product
+app.put('/products/:id', async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body; // Accept entire update payload
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ error: 'Invalid product ID' });
+  }
+  if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
+    return res.status(400).json({ error: 'Invalid update payload' });
+  }
+
+  try {
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { availableInventory } }
+      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
+      { $set: updateData } // Dynamically apply updates
     );
 
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    res.json({ message: 'Product updated successfully', updatedFields: { availableInventory } });
+    res.json({ message: 'Product updated successfully', updatedFields: updateData });
   } catch (error) {
-    console.error('Error updating product:', error);
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
-
 
 
 
