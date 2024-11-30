@@ -76,28 +76,10 @@ app.post('/orders', async (req, res) => {
 
   // Validate input
   if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !customerName || !phoneNumber) {
-    return res.status(400).json({ error: 'Missing required fields: productIds, customerName, or phoneNumber' });
+    return res.status(400).json({ error: 'Missing required fields: customerName, or phoneNumber' });
   }
 
   try {
-    // Validate and update inventory for each product
-    const bulkOperations = productIds.map(productId => ({
-      updateOne: {
-        filter: { _id: new ObjectId(productId), availableInventory: { $gt: 0 } }, // Ensure inventory is available
-        update: { $inc: { availableInventory: -1 } } // Deduct one item
-      }
-    }));
-
-    const bulkResult = await productsCollection.bulkWrite(bulkOperations);
-
-    // Check if all updates were successful
-    if (bulkResult.modifiedCount !== productIds.length) {
-      return res.status(400).json({
-        error: 'Failed to place order. Some products may have insufficient inventory.'
-      });
-    }
-
-    // If inventory updates succeed, save the order details
     const order = { productIds, customerName, phoneNumber, date: new Date() };
     const orderResult = await ordersCollection.insertOne(order);
 
@@ -111,40 +93,41 @@ app.post('/orders', async (req, res) => {
 
 
 
-
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body; // Object containing fields to be updated
+  const updateData = req.body; // Accept entire update payload
+  const { quantityOrdered } = updateData;  // Assume this is passed in the payload
 
-  console.log('Product ID:', id);
-  console.log('Update Data:', updateData);
-
-  // Validate if the ID is a valid MongoDB ObjectId
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
 
-  // Ensure the update data is not empty
-  if (!updateData || typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
-    return res.status(400).json({ error: 'Update data is required and cannot be empty' });
+  if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
+    return res.status(400).json({ error: 'Invalid update payload' });
+  }
+
+  if (quantityOrdered && (typeof quantityOrdered !== 'number' || quantityOrdered <= 0)) {
+    return res.status(400).json({ error: 'Invalid quantity ordered' });
   }
 
   try {
+    // Update the stock using $inc to decrement it
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) }, // Match the product by ID
-      { $set: updateData }       // Set the fields to the provided values
+      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
+      {
+        $inc: { stock: -quantityOrdered },  // Decrease stock by quantityOrdered
+        $set: updateData,  // Apply other updates (if any)
+      }
     );
-
-    console.log('Update Result:', result);
 
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    res.json({ message: 'Product updated successfully', result });
+    res.json({ message: 'Product updated successfully', updatedFields: updateData });
   } catch (error) {
-    console.error('Error updating product:', error);
+    console.error(error);  // Log error for debugging
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
