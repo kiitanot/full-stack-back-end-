@@ -116,7 +116,7 @@ app.put('/products/:id', async (req, res) => {
     const result = await productsCollection.updateOne(
       { _id: new ObjectId(id) },  // Ensure we're looking for the right product
       {
-        $inc: { stock: -quantityOrdered },  // Decrease stock by quantityOrdered
+        $inc: { availableInventory: -quantityOrdered },  // Decrease stock by quantityOrdered
         $set: updateData,  // Apply other updates (if any)
       }
     );
