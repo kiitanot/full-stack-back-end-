@@ -96,41 +96,43 @@ app.post('/orders', async (req, res) => {
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body; // Accept entire update payload
-  const { quantityOrdered } = updateData;  // Assume this is passed in the payload
+  const { quantityOrdered, ...otherUpdates } = req.body; // Destructure payload to extract `quantityOrdered`
 
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
 
-  if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
-    return res.status(400).json({ error: 'Invalid update payload' });
-  }
-
-  if (cartCount && (typeof cartCount !== 'number' || cartCount <= 0)) {
+  if (!quantityOrdered || typeof quantityOrdered !== 'number' || quantityOrdered <= 0) {
     return res.status(400).json({ error: 'Invalid quantity ordered' });
   }
 
   try {
     // Update the stock using $inc to decrement it
+    const updatePayload = {
+      $inc: { availableInventory: -quantityOrdered }, // Decrease inventory
+    };
+
+    // Include other fields to update if provided
+    if (Object.keys(otherUpdates).length > 0) {
+      updatePayload.$set = otherUpdates;
+    }
+
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
-      {
-        $inc: { availableInventory: -cartCount },  // Decrease stock by quantityOrdered
-        $inc: updateData,  // Apply other updates (if any)
-      }
+      { _id: new ObjectId(id) }, // Ensure we're looking for the correct product
+      updatePayload
     );
 
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    res.json({ message: 'Product updated successfully', updatedFields: updateData });
+    res.json({ message: 'Product updated successfully', updatedFields: updatePayload });
   } catch (error) {
-    console.error(error);  // Log error for debugging
+    console.error(error); // Log error for debugging
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
+
 
 
 
