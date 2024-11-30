@@ -107,7 +107,7 @@ app.put('/products/:id', async (req, res) => {
     return res.status(400).json({ error: 'Invalid update payload' });
   }
 
-  if (quantityOrdered && (typeof quantityOrdered !== 'number' || quantityOrdered <= 0)) {
+  if (cartCount && (typeof cartCount !== 'number' || cartCount <= 0)) {
     return res.status(400).json({ error: 'Invalid quantity ordered' });
   }
 
@@ -116,8 +116,8 @@ app.put('/products/:id', async (req, res) => {
     const result = await productsCollection.updateOne(
       { _id: new ObjectId(id) },  // Ensure we're looking for the right product
       {
-        $inc: { availableInventory: -quantityOrdered },  // Decrease stock by quantityOrdered
-        $set: updateData,  // Apply other updates (if any)
+        $inc: { availableInventory: -cartCount },  // Decrease stock by quantityOrdered
+        $inc: updateData,  // Apply other updates (if any)
       }
     );
 
