@@ -76,10 +76,28 @@ app.post('/orders', async (req, res) => {
 
   // Validate input
   if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !customerName || !phoneNumber) {
-    return res.status(400).json({ error: 'Missing required fields: customerName, or phoneNumber' });
+    return res.status(400).json({ error: 'Missing required fields: productIds, customerName, or phoneNumber' });
   }
 
   try {
+    // Validate and update inventory for each product
+    const bulkOperations = productIds.map(productId => ({
+      updateOne: {
+        filter: { _id: new ObjectId(productId), availableInventory: { $gt: 0 } }, // Ensure inventory is available
+        update: { $inc: { availableInventory: -1 } } // Deduct one item
+      }
+    }));
+
+    const bulkResult = await productsCollection.bulkWrite(bulkOperations);
+
+    // Check if all updates were successful
+    if (bulkResult.modifiedCount !== productIds.length) {
+      return res.status(400).json({
+        error: 'Failed to place order. Some products may have insufficient inventory.'
+      });
+    }
+
+    // If inventory updates succeed, save the order details
     const order = { productIds, customerName, phoneNumber, date: new Date() };
     const orderResult = await ordersCollection.insertOne(order);
 
@@ -90,6 +108,7 @@ app.post('/orders', async (req, res) => {
     res.status(500).json({ error: 'An error occurred while processing the order' });
   }
 });
+
 
 
 
