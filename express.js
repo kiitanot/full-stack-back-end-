@@ -95,35 +95,34 @@ app.post('/orders', async (req, res) => {
 
 
 // PUT route to update any attribute of a product
-app.put('/products/:productid', async (req, res, next) => {
+app.put("/products/:id", async (req, res) => {
   try {
-    const productId = req.params.productid;
-    const updatedProduct = req.body;
+    const productId = req.params.id;
+    const { availableInventory } = req.body;
 
-    if (!updatedProduct || typeof updatedProduct !== 'object') {
-      return res.status(400).send("Invalid product data.");
+    if (!ObjectId.isValid(productId)) {
+      return res.status(400).json({ error: "Invalid product ID." });
     }
 
-    // Avoid updating the `_id` field
-    delete updatedProduct._id;
+    if (typeof availableInventory !== "number" || availableInventory < 0) {
+      return res.status(400).json({ error: "Invalid availableInventory value." });
+    }
 
-    const result = await db.collection('products').updateOne(
+    const result = await db.collection("products").updateOne(
       { _id: new ObjectId(productId) },
-      { $set: updatedProduct }
+      { $set: { availableInventory } }
     );
 
     if (result.matchedCount === 0) {
-      return res.status(404).send("Product not found.");
+      return res.status(404).json({ error: "Product not found." });
     }
 
-    res.status(200).send({ message: `Product ${productId} updated successfully.` });
-
-  } catch (err) {
-    console.error("Error updating product:", err);
-    next(err); // Pass the error to the error-handling middleware
+    res.status(200).json({ message: "Product updated successfully." });
+  } catch (error) {
+    console.error("Error updating product:", error);
+    res.status(500).json({ error: "Internal server error." });
   }
 });
-
 
 
 
