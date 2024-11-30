@@ -5,6 +5,7 @@ const { MongoClient, ObjectId } = require('mongodb');
 const cors = require('cors');
 const app = express();
 
+
 app.use(cors());
 app.use(express.json());
 
@@ -96,30 +97,33 @@ app.post('/orders', async (req, res) => {
 // PUT route to update any attribute of a product
 app.put('/products/:productid', async (req, res, next) => {
   try {
-    const productId = req.params.ProductsId;
+    const productId = req.params.productid;
     const updatedProduct = req.body;
 
     if (!updatedProduct || typeof updatedProduct !== 'object') {
-      return res.status (400).send("Invalid product data.");
+      return res.status(400).send("Invalid product data.");
     }
 
+    // Avoid updating the `_id` field
     delete updatedProduct._id;
 
     const result = await db.collection('products').updateOne(
-      { _id: new objectId(productId) },
+      { _id: new ObjectId(productId) },
+      { $set: updatedProduct }
     );
 
     if (result.matchedCount === 0) {
       return res.status(404).send("Product not found.");
     }
-    
-    res.status(200).send({ message: 'Product ${productId} updated successfully.'});
 
-    } catch (err) {
-      console.error("Error updating product:", err);
-      next(err); //pass the error to the handling middleware
-    }
-  });
+    res.status(200).send({ message: `Product ${productId} updated successfully.` });
+
+  } catch (err) {
+    console.error("Error updating product:", err);
+    next(err); // Pass the error to the error-handling middleware
+  }
+});
+
 
 
 
