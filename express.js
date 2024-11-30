@@ -5,7 +5,8 @@ const { MongoClient, ObjectId } = require('mongodb');
 const cors = require('cors');
 const app = express();
 
-
+app.use(cors());
+app.use(express.json());
 
 // MongoDB connection URI and database name
 const uri = 'mongodb+srv://ko460:nCEsXelqNFBfvPGQ@webstorecluster.wu59k.mongodb.net/?retryWrites=true&w=majority&appName=WebstoreCluster';
@@ -23,8 +24,7 @@ MongoClient.connect(uri)
   })
   .catch((err) => console.error('Failed to connect to MongoDB:', err));
 
-app.use(cors());
-app.use(express.json());
+
 // Logger middleware
 const logger = (req, res, next) => {
   const now = new Date();
@@ -98,6 +98,9 @@ app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
   const { availableInventory } = req.body;
 
+  console.log('ID:', id);
+  console.log('Body:', req.body);
+
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
@@ -108,8 +111,10 @@ app.put('/products/:id', async (req, res) => {
   try {
     const result = await productsCollection.updateOne(
       { _id: new ObjectId(id) },
-      { $inc: { availableInventory } }
+      { $inc: { availableInventory } } // Change to $set if increment is not desired
     );
+
+    console.log('Update Result:', result);
 
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Product not found' });
@@ -117,9 +122,11 @@ app.put('/products/:id', async (req, res) => {
 
     res.json({ message: 'Product stock updated successfully' });
   } catch (error) {
+    console.error('Error updating product:', error);
     res.status(500).json({ error: 'Failed to update product stock' });
   }
 });
+
 
 
 
