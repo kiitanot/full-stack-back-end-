@@ -70,47 +70,26 @@ app.get('/products', async (req, res) => {
 });
 
 
-
 // POST route for orders
 app.post('/orders', async (req, res) => {
-  const { products, customerDetails } = req.body; // Expect order details
+  const { productIds, customerName, phoneNumber } = req.body;
+
+  // Validate input
+  if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !customerName || !phoneNumber) {
+    return res.status(400).json({ error: 'Missing required fields: customerName, or phoneNumber' });
+  }
+
   try {
-      // Start a session for atomic operations
-      const session = await db.startSession();
-      session.startTransaction();
+    const order = { productIds, customerName, phoneNumber, date: new Date() };
+    const orderResult = await ordersCollection.insertOne(order);
 
-      // Process each product in the order
-      for (const product of products) {
-          const result = await productsCollection.updateOne(
-              { _id: new ObjectId(product._id), availableInventory: { $gte: product.quantity } }, // Check inventory
-              { $inc: { availableInventory: -product.quantity } }, // Decrement stock
-              { session } // Ensure atomic operation
-          );
-
-          if (result.matchedCount === 0) {
-              await session.abortTransaction();
-              session.endSession();
-              return res.status(400).json({ error: `Insufficient stock for product ID: ${product._id}` });
-          }
-      }
-
-      // Save the order
-      const order = {
-          products,
-          customerDetails,
-          createdAt: new Date(),
-      };
-      const orderResult = await ordersCollection.insertOne(order, { session });
-
-      await session.commitTransaction();
-      session.endSession();
-
-      res.json({ orderId: orderResult.insertedId, message: 'Order placed successfully' });
+    // Respond with success and the order ID
+    res.status(201).json({ message: 'Order created successfully', orderId: orderResult.insertedId });
   } catch (error) {
-      res.status(500).json({ error: 'Failed to place order' });
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: 'An error occurred while processing the order' });
   }
 });
-
 
 
 
