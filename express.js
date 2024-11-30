@@ -94,28 +94,31 @@ app.post('/orders', async (req, res) => {
 
 
 // PUT route to update any attribute of a product
-app.put('/products/:productId', (req, res) => {
-  const { productId } = req.params;
-  const { quantityOrdered } = req.body;
+app.put('/products/:id', async (req, res) => {
+  const { id } = req.params;
+  const { availableInventory } = req.body;
 
-  if (!quantityOrdered || isNaN(quantityOrdered)) {
-      return res.status(400).json({ error: "Invalid quantityOrdered" });
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ error: 'Invalid product ID' });
+  }
+  if (availableInventory == null || typeof availableInventory !== 'number' || availableInventory < 0) {
+    return res.status(400).json({ error: 'Invalid stock value' });
   }
 
-  const product = inventory[productId];
-  if (!product) {
-      return res.status(404).json({ error: "Product not found" });
+  try {
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $inc: { availableInventory } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    res.json({ message: 'Product stock updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update product stock' });
   }
-
-  if (product.stock < quantityOrdered) {
-      return res.status(400).json({ error: "Insufficient stock" });
-  }
-
-  // Update stock
-  product.stock -= quantityOrdered;
-  console.log(`Updated inventory for Product ID ${productId}:`, product);
-
-  res.status(200).json(product); // Return updated product details
 });
 
 
