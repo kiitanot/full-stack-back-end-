@@ -96,7 +96,7 @@ app.post('/orders', async (req, res) => {
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body;
+  const updateData = req.body; // Accept entire update payload
 
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
@@ -107,10 +107,8 @@ app.put('/products/:id', async (req, res) => {
 
   try {
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) }, 
-      { 
-        $inc: { availableInventory: -updateData.availableInventory } // Subtract from availableInventory
-      }
+      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
+      { $set: updateData } // Dynamically apply updates
     );
 
     if (result.matchedCount === 0) {
@@ -124,6 +122,30 @@ app.put('/products/:id', async (req, res) => {
 });
 
 
+
+
+// Search
+
+app.get('/search', async (req, res) => {
+  const searchTerm = req.query.searchTerm?.toLowerCase() || ''; // Capture search term from query parameters and convert to lowercase
+
+  try {
+    // Filter products based on search term matching the specified fields
+    const results = await productsCollection.find({
+      $or: [
+        { title: { $regex: searchTerm, $options: 'i' } },
+        { location: { $regex: searchTerm, $options: 'i' } },
+        { price: { $eq: parseFloat(searchTerm) } }
+      ]
+    }).toArray();
+
+    // Return the filtered products as JSON response
+    res.json(results);
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ error: 'Error searching for products' });
+  }
+});
 
 
 
@@ -151,7 +173,7 @@ app.get('/search', async (req, res) => {
 });
 
 
-    
+
 
 // Start the server
 
