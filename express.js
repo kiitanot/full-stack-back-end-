@@ -94,48 +94,18 @@ app.post('/orders', async (req, res) => {
 
 
 // PUT route to update any attribute of a product
-app.put('/products/:id', async (req, res) => {
-  const { id } = req.params;
-  const updateData = req.body; // Ensure this is parsed correctly
-  const { quantityOrdered } = updateData; // Extract specific fields for validation
+app.put('/products/:productId', (req, res) => {
+  const { productId } = req.params;
+  const { quantityOrdered } = req.body;
 
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ error: 'Invalid product ID' });
+  if (!quantityOrdered) {
+      return res.status(400).json({ error: "Invalid update payload" });
   }
 
-  if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
-    return res.status(400).json({ error: 'Invalid update payload' });
-  }
-
-  if (quantityOrdered && (typeof quantityOrdered !== 'number' || quantityOrdered <= 0)) {
-    return res.status(400).json({ error: 'Invalid quantity ordered' });
-  }
-
-  try {
-    const updateFields = { ...updateData }; // Clone the object
-    delete updateFields.quantityOrdered; // Remove `quantityOrdered` since it’s handled separately
-
-    const updateOperations = {
-      ...(quantityOrdered ? { $inc: { stock: -quantityOrdered } } : {}),
-      ...(Object.keys(updateFields).length ? { $set: updateFields } : {}),
-    };
-
-    const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },
-      updateOperations
-    );
-
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-
-    res.json({ message: 'Product updated successfully', updatedFields: updateData });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to update product' });
-  }
+  // Mock inventory update (replace with database logic)
+  console.log(`Product ${productId} inventory reduced by ${quantityOrdered}`);
+  res.status(200).json({ message: "Inventory updated" });
 });
-
 
 
 
