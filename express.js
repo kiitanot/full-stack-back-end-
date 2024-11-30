@@ -70,6 +70,7 @@ app.get('/products', async (req, res) => {
 });
 
 
+
 // POST route for orders
 app.post('/orders', async (req, res) => {
   const { products, customerDetails } = req.body; // Expect order details
