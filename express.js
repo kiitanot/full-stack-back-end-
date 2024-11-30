@@ -111,8 +111,8 @@ app.put('/products/:id', async (req, res) => {
   try {
     // Update the inventory atomically by subtracting the quantity
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id), inventory: { $gte: quantity } }, // Check if enough stock exists
-      { $inc: { inventory: -quantity } } // Atomically decrement the inventory by the 'quantity'
+      { _id: new ObjectId(id), availableInventory: { $gte: quantity } }, // Check if enough stock exists
+      { $inc: { availableInventory: -quantity } } // Atomically decrement the inventory by the 'quantity'
     );
 
     // Check if the product was found and the inventory updated
