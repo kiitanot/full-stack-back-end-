@@ -149,32 +149,6 @@ app.get('/search', async (req, res) => {
 
 
 
-// Search
-// Search for products based on the search term
-app.get('/search', async (req, res) => {
-  const searchTerm = req.query.searchTerm?.toLowerCase() || ''; // Capture search term from query parameters and convert to lowercase
-
-  try {
-    // Filter products based on search term matching the specified fields
-    const results = await productsCollection.find({
-      $or: [
-        { title: { $regex: searchTerm, $options: 'i' } },
-        { location: { $regex: searchTerm, $options: 'i' } },
-        { price: { $eq: parseFloat(searchTerm) } }
-      ]
-    }).toArray();
-
-    // Return the filtered products as JSON response
-    res.json(results);
-  } catch (error) {
-    console.error('Search error:', error);
-    res.status(500).json({ error: 'Error searching for products' });
-  }
-});
-
-
-
-
 // Start the server
 
 const port = process.env.PORT || 3000;
