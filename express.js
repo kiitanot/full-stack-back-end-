@@ -96,37 +96,36 @@ app.post('/orders', async (req, res) => {
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const { availableInventory } = req.body; // Change this to match the frontend field name
+  const { quantity } = req.body; // This assumes 'quantity' specifies how much to decrement
 
   // Validate the product ID
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
 
-  // Validate availableInventory
-  if (availableInventory === undefined || typeof availableInventory !== 'number' || availableInventory < 0) {
-    return res.status(400).json({ error: 'Invalid availableInventory specified' });
+  // Validate quantity
+  if (!quantity || typeof quantity !== 'number' || quantity <= 0) {
+    return res.status(400).json({ error: 'Invalid quantity specified' });
   }
 
   try {
-    // Update the inventory atomically
+    // Update the inventory atomically by subtracting the quantity
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id), inventory: { $gte: availableInventory } }, // Check if inventory is sufficient
-      { $set: { inventory: availableInventory } } // Update the inventory to the new value
+      { _id: new ObjectId(id), inventory: { $gte: quantity } }, // Check if enough stock exists
+      { $inc: { inventory: -quantity } } // Atomically decrement the inventory by the 'quantity'
     );
 
-    // Check if the product was found and updated
+    // Check if the product was found and the inventory updated
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Product not found or insufficient inventory' });
     }
 
     res.json({ message: 'Inventory updated successfully' });
   } catch (error) {
-    console.error("Error updating inventory:", error); // Add detailed error logging
+    console.error("Error updating inventory:", error);
     res.status(500).json({ error: 'Failed to update inventory' });
   }
 });
-
 
 
 
