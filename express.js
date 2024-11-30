@@ -96,30 +96,37 @@ app.post('/orders', async (req, res) => {
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const { quantity } = req.body; // Assume `quantity` specifies the number of items to deduct
+  const { availableInventory } = req.body; // Change this to match the frontend field name
 
+  // Validate the product ID
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
-  if (!quantity || typeof quantity !== 'number' || quantity <= 0) {
-    return res.status(400).json({ error: 'Invalid quantity specified' });
+
+  // Validate availableInventory
+  if (availableInventory === undefined || typeof availableInventory !== 'number' || availableInventory < 0) {
+    return res.status(400).json({ error: 'Invalid availableInventory specified' });
   }
 
   try {
+    // Update the inventory atomically
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id), inventory: { $gte: quantity } }, // Ensure enough stock exists
-      { $inc: { inventory: -quantity } } // Atomically decrement inventory
+      { _id: new ObjectId(id), inventory: { $gte: availableInventory } }, // Check if inventory is sufficient
+      { $set: { inventory: availableInventory } } // Update the inventory to the new value
     );
 
+    // Check if the product was found and updated
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Product not found or insufficient inventory' });
     }
 
     res.json({ message: 'Inventory updated successfully' });
   } catch (error) {
+    console.error("Error updating inventory:", error); // Add detailed error logging
     res.status(500).json({ error: 'Failed to update inventory' });
   }
 });
+
 
 
 
