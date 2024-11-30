@@ -117,7 +117,7 @@ app.put('/products/:id', async (req, res) => {
       { _id: new ObjectId(id) },  // Ensure we're looking for the right product
       {
         $inc: { stock: -quantityOrdered },  // Decrease stock by quantityOrdered
-        $set: updateData,  // Apply other updates (if any)
+        $inc: updateData,  // Apply other updates (if any)
       }
     );
 
@@ -131,6 +131,7 @@ app.put('/products/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
+
 
 
 
