@@ -96,22 +96,25 @@ app.post('/orders', async (req, res) => {
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const { availableInventory } = req.body;
+  const updateData = req.body; // Object containing fields to be updated
 
-  console.log('ID:', id);
-  console.log('Body:', req.body);
+  console.log('Product ID:', id);
+  console.log('Update Data:', updateData);
 
+  // Validate if the ID is a valid MongoDB ObjectId
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
-  if (availableInventory == null || typeof availableInventory !== 'number' || availableInventory < 0) {
-    return res.status(400).json({ error: 'Invalid stock value' });
+
+  // Ensure the update data is not empty
+  if (!updateData || typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
+    return res.status(400).json({ error: 'Update data is required and cannot be empty' });
   }
 
   try {
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },
-      { $inc: { availableInventory } } // Change to $set if increment is not desired
+      { _id: new ObjectId(id) }, // Match the product by ID
+      { $set: updateData }       // Set the fields to the provided values
     );
 
     console.log('Update Result:', result);
@@ -120,10 +123,10 @@ app.put('/products/:id', async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    res.json({ message: 'Product stock updated successfully' });
+    res.json({ message: 'Product updated successfully', result });
   } catch (error) {
     console.error('Error updating product:', error);
-    res.status(500).json({ error: 'Failed to update product stock' });
+    res.status(500).json({ error: 'Failed to update product' });
   }
 });
 
