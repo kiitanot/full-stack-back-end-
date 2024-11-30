@@ -94,7 +94,7 @@ app.post('/orders', async (req, res) => {
 
 
 // PUT route to update any attribute of a product
-app.put('Webstore/products/:productid', async (req, res, next) => {
+app.put('/products/:productid', async (req, res, next) => {
   try {
     const productId = req.params.ProductsId;
     const updatedProduct = req.body;
