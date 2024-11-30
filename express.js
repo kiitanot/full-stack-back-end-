@@ -97,18 +97,28 @@ app.post('/orders', async (req, res) => {
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
   const updateData = req.body; // Accept entire update payload
+  const { quantityOrdered } = updateData;  // Assume this is passed in the payload
 
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
+
   if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
     return res.status(400).json({ error: 'Invalid update payload' });
   }
 
+  if (quantityOrdered && (typeof quantityOrdered !== 'number' || quantityOrdered <= 0)) {
+    return res.status(400).json({ error: 'Invalid quantity ordered' });
+  }
+
   try {
+    // Update the stock using $inc to decrement it
     const result = await productsCollection.updateOne(
       { _id: new ObjectId(id) },  // Ensure we're looking for the right product
-      { $set: updateData } // Dynamically apply updates
+      {
+        $inc: { stock: -quantityOrdered },  // Decrease stock by quantityOrdered
+        $set: updateData,  // Apply other updates (if any)
+      }
     );
 
     if (result.matchedCount === 0) {
@@ -117,10 +127,10 @@ app.put('/products/:id', async (req, res) => {
 
     res.json({ message: 'Product updated successfully', updatedFields: updateData });
   } catch (error) {
+    console.error(error);  // Log error for debugging
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
-
 
 
 
