@@ -135,7 +135,8 @@ app.get('/search', async (req, res) => {
       $or: [
         { title: { $regex: searchTerm, $options: 'i' } },
         { location: { $regex: searchTerm, $options: 'i' } },
-        { price: { $eq: parseFloat(searchTerm) } }
+        { price: { $eq: parseFloat(searchTerm) } },
+        { avalability: { $eq: parseFloat(searchTerm) } }
       ]
     }).toArray();
 
