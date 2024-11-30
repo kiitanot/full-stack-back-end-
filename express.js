@@ -94,43 +94,32 @@ app.post('/orders', async (req, res) => {
 
 
 // PUT route to update any attribute of a product
-app.put('/products/:id', async (req, res) => {
-  const { id } = req.params;
-  const updateData = req.body; // Accept entire update payload
-  const { quantityOrdered } = updateData;  // Assume this is passed in the payload
-
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ error: 'Invalid product ID' });
-  }
-
-  if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
-    return res.status(400).json({ error: 'Invalid update payload' });
-  }
-
-  if (quantityOrdered && (typeof quantityOrdered !== 'number' || quantityOrdered <= 0)) {
-    return res.status(400).json({ error: 'Invalid quantity ordered' });
-  }
-
+app.put('collections/products/:productid', async (req, res, next) => {
   try {
-    // Update the stock using $inc to decrement it
-    const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
-      {
-        $inc: { stock: -quantityOrdered },  // Decrease stock by quantityOrdered
-        $set: updateData,  // Apply other updates (if any)
-      }
+    const productId = req.params.ProductsId;
+    const updatedProduct = req.body;
+
+    if (!updatedProduct || typeof updatedProduct !== 'object') {
+      return res.status (400).send("Invalid product data.");
+    }
+
+    delete updatedProduct._id;
+
+    const result = await db.collection('products').updateOne(
+      { _id: new objectId(productId) },
     );
 
     if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).send("Product not found.");
     }
+    
+    res.status(200).send({ message: 'Product ${productId} updated successfully.'});
 
-    res.json({ message: 'Product updated successfully', updatedFields: updateData });
-  } catch (error) {
-    console.error(error);  // Log error for debugging
-    res.status(500).json({ error: 'Failed to update product' });
-  }
-});
+    } catch (err) {
+      console.error("Error updating product:", err);
+      next(err); //pass the error to the handling middleware
+    }
+  });
 
 
 
