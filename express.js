@@ -98,13 +98,24 @@ app.put('/products/:productId', (req, res) => {
   const { productId } = req.params;
   const { quantityOrdered } = req.body;
 
-  if (!quantityOrdered) {
-      return res.status(400).json({ error: "Invalid update payload" });
+  if (!quantityOrdered || isNaN(quantityOrdered)) {
+      return res.status(400).json({ error: "Invalid quantityOrdered" });
   }
 
-  // Mock inventory update (replace with database logic)
-  console.log(`Product ${productId} inventory reduced by ${quantityOrdered}`);
-  res.status(200).json({ message: "Inventory updated" });
+  const product = inventory[productId];
+  if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+  }
+
+  if (product.stock < quantityOrdered) {
+      return res.status(400).json({ error: "Insufficient stock" });
+  }
+
+  // Update stock
+  product.stock -= quantityOrdered;
+  console.log(`Updated inventory for Product ID ${productId}:`, product);
+
+  res.status(200).json(product); // Return updated product details
 });
 
 
