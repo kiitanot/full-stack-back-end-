@@ -96,30 +96,50 @@ app.post('/orders', async (req, res) => {
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body; // Accept entire update payload
+  const { quantityTaken } = req.body; // Expect only quantity taken from frontend
 
+  // Validate input
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
-  if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
-    return res.status(400).json({ error: 'Invalid update payload' });
+  if (typeof quantityTaken !== 'number' || quantityTaken <= 0) {
+    return res.status(400).json({ error: 'Invalid quantity requested' });
   }
 
   try {
-    const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
-      { $set: updateData } // Dynamically apply updates
-    );
-
-    if (result.matchedCount === 0) {
+    // Fetch the product's current stock
+    const product = await productsCollection.findOne({ _id: new ObjectId(id) });
+    if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    res.json({ message: 'Product updated successfully', updatedFields: updateData });
+    // Ensure there is enough stock available
+    if (product.availableInventory < quantityTaken) {
+      return res.status(400).json({ error: 'Insufficient stock available' });
+    }
+
+    // Deduct the stock atomically
+    const newInventory = product.availableInventory - quantityTaken;
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { availableInventory: newInventory } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Product not found or already updated' });
+    }
+
+    res.json({
+      message: 'Product updated successfully',
+      productId: id,
+      availableInventory: newInventory,
+    });
   } catch (error) {
+    console.error('Error updating inventory:', error);
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
+
 
 
 
