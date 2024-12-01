@@ -94,26 +94,37 @@ app.post('/orders', async (req, res) => {
 
 
 // PUT route to update any attribute of a product
-app.post('/orders', async (req, res) => {
-  const { productIds, customerName, phoneNumber } = req.body;
+app.put('/products/:id', async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body; // Accept entire update payload
 
-  // Validate input
-  if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !customerName || !phoneNumber) {
-    return res.status(400).json({ error: 'Missing required fields: customerName, or phoneNumber' });
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ error: 'Invalid product ID' });
   }
+  if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
+    return res.status(400).json({ error: 'Invalid update payload' });
+  }
+
 
   try {
-    const order = { productIds, customerName, phoneNumber, date: new Date() };
-    const orderResult = await ordersCollection.insertOne(order);
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
+      { $set: updateData } // Dynamically apply updates
+    );
 
-    // Respond with success and the order ID
-    res.status(201).json({ message: 'Order created successfully', orderId: orderResult.insertedId });
+
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+
+    res.json({ message: 'Product updated successfully', updatedFields: updateData });
   } catch (error) {
-    console.error('Error creating order:', error);
-    res.status(500).json({ error: 'An error occurred while processing the order' });
+    res.status(500).json({ error: 'Failed to update product' });
   }
 });
-
 
 
 
