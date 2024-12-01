@@ -107,6 +107,7 @@ app.put('/products/:id', async (req, res) => {
   }
 
 
+  
   try {
     const result = await productsCollection.updateOne(
       { _id: new ObjectId(id) },  // Ensure we're looking for the right product
