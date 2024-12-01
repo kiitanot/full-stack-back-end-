@@ -80,15 +80,41 @@ app.post('/orders', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields: customerName, or phoneNumber' });
   }
 
+  const session = client.startSession();  // Start a session for transaction support
+  session.startTransaction();  // Begin transaction
+
   try {
     const order = { productIds, customerName, phoneNumber, date: new Date() };
-    const orderResult = await ordersCollection.insertOne(order);
+    const orderResult = await ordersCollection.insertOne(order, { session });
+
+    // Loop through the productIds and update inventory
+    for (let productId of productIds) {
+      const product = await productsCollection.findOne({ _id: ObjectId(productId) });
+
+      if (product && product.availableInventory > 0) {
+        // Decrease the available inventory by 1
+        await productsCollection.updateOne(
+          { _id: ObjectId(productId) },
+          { $inc: { availableInventory: -1 } },
+          { session }  // Make sure to include the session in the update
+        );
+      } else {
+        throw new Error('Product out of stock');
+      }
+    }
+
+    // Commit the transaction
+    await session.commitTransaction();
 
     // Respond with success and the order ID
     res.status(201).json({ message: 'Order created successfully', orderId: orderResult.insertedId });
   } catch (error) {
+    // Abort the transaction in case of an error
+    await session.abortTransaction();
     console.error('Error creating order:', error);
     res.status(500).json({ error: 'An error occurred while processing the order' });
+  } finally {
+    session.endSession();  // End the session
   }
 });
 
@@ -129,6 +155,7 @@ app.put('/products/:id', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err });
   }
 });
+
 
 
 
