@@ -95,23 +95,28 @@ app.post('/orders', async (req, res) => {
 
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
-    try {
-        const { productId, productLeft } = req.body; // Ensure you're extracting the correct data from the request
-        
-        const result = await db.collection('products').updateOne(
-            { _id: productId }, // Locate the specific document
-            { $set: { products_left: productsLeft } } // Update the correct field
-        );
+  try {
+      const { productId, orderedQuantity } = req.body; // Ensure you're extracting the ordered quantity
+      if (!productId || !orderedQuantity) {
+          return res.status(400).json({ message: 'productId and orderedQuantity are required' });
+      }
 
-        if (result.modifiedCount > 0) {
-            res.status(200).json({ message: 'product updated successfully' });
-        } else {
-            res.status(404).json({ message: 'product not found or no changes made' });
-        }
-    } catch (error) {
-        res.status(500).json({ message: 'Internal Server Error', error });
-    }
+      // Use MongoDB's $inc operator to decrease the products_left field
+      const result = await db.collection('products').updateOne(
+          { _id: productId }, // Locate the specific document
+          { $inc: { products_left: -orderedQuantity } } // Reduce products_left by the ordered quantity
+      );
+
+      if (result.modifiedCount > 0) {
+          res.status(200).json({ message: 'Product updated successfully' });
+      } else {
+          res.status(404).json({ message: 'Product not found or no changes made' });
+      }
+  } catch (error) {
+      res.status(500).json({ message: 'Internal Server Error', error });
+  }
 });
+
 
 
 
