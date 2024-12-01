@@ -108,7 +108,7 @@ app.put('/products/:id', async (req, res) => {
 
   try {
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },
+      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
       { $set: updateData } // Dynamically apply updates
     );
 
@@ -121,8 +121,6 @@ app.put('/products/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
-
-
 
 
 
