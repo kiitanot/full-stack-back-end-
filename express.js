@@ -95,44 +95,22 @@ app.post('/orders', async (req, res) => {
 
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
-  const { id } = req.params;
-  const updateData = req.body;
+    try {
+        const { productId, productLeft } = req.body; // Ensure you're extracting the correct data from the request
+        
+        const result = await db.collection('products').updateOne(
+            { _id: productId }, // Locate the specific document
+            { $set: { products_left: productsLeft } } // Update the correct field
+        );
 
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ error: 'Invalid product ID' });
-  }
-
-  if (!updateData || typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
-    return res.status(400).json({ error: 'Invalid or empty update payload' });
-  }
-
-  // Strip out null/undefined values
-  const sanitizedUpdateData = Object.fromEntries(
-    Object.entries(updateData).filter(([_, value]) => value != null)
-  );
-
-  try {
-    const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: sanitizedUpdateData }
-    );
-
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'Product not found' });
+        if (result.modifiedCount > 0) {
+            res.status(200).json({ message: 'product updated successfully' });
+        } else {
+            res.status(404).json({ message: 'product not found or no changes made' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: 'Internal Server Error', error });
     }
-
-    if (result.modifiedCount === 0) {
-      return res.status(400).json({ error: 'No changes were made to the product' });
-    }
-
-    res.json({
-      message: 'Product updated successfully',
-      updatedFields: sanitizedUpdateData,
-    });
-  } catch (error) {
-    console.error('Error updating product:', error);
-    res.status(500).json({ error: 'Failed to update product' });
-  }
 });
 
 
