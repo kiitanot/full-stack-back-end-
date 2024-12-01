@@ -94,8 +94,8 @@ app.post('/orders', async (req, res) => {
 
 
 // PUT route to update any attribute of a product
-app.put('/products/:id', async (req, res) => {
-  const { id } = req.params;
+app.put('/products/:productid', async (req, res, next) => {
+  const productIdid = req.params.productId;
   const updateData = req.body; // Accept entire update payload
 
 
@@ -105,11 +105,13 @@ app.put('/products/:id', async (req, res) => {
   if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
     return res.status(400).json({ error: 'Invalid update payload' });
   }
-
+ 
+  //prevemt overwriting the_id field accidentally
+  delete updateData._id;
 
   try {
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
+      { _id: new ObjectId(productId) },  // Ensure we're looking for the right product
       { $set: updateData } // Dynamically apply updates
     );
 
