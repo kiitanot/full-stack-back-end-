@@ -32,6 +32,15 @@ const logger = (req, res, next) => {
   console.log(logMessage);
   next();
 };
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    if (req.method === 'POST' && req.originalUrl === '/orders') {
+      console.log(`[LOG] Inventory updated for order: ${JSON.stringify(req.body.productIds)}`);
+    }
+  });
+  next();
+});
+
 
 // Apply logger middleware globally
 app.use(logger);
@@ -80,16 +89,47 @@ app.post('/orders', async (req, res) => {
   }
 
   try {
+    const session = await productsCollection.client.startSession(); // Start a session for transaction
+    session.startTransaction();
+
+    const updatedProducts = [];
+    for (const productId of productIds) {
+      // Ensure product ID is valid
+      if (!ObjectId.isValid(productId)) {
+        throw new Error(`Invalid product ID: ${productId}`);
+      }
+
+      // Decrement inventory atomically
+      const result = await productsCollection.updateOne(
+        { _id: new ObjectId(productId), availableInventory: { $gt: 0 } }, // Check inventory is sufficient
+        { $inc: { availableInventory: -1 } }, // Atomically decrement inventory
+        { session } // Include the session in the query
+      );
+
+      if (result.matchedCount === 0) {
+        throw new Error(`Product with ID ${productId} is out of stock or not found.`);
+      }
+
+      updatedProducts.push(productId);
+    }
+
+    // Create the order
     const order = { productIds, customerName, phoneNumber, date: new Date() };
-    const orderResult = await ordersCollection.insertOne(order);
+    const orderResult = await ordersCollection.insertOne(order, { session });
+
+    await session.commitTransaction(); // Commit the transaction
+    session.endSession();
 
     // Respond with success and the order ID
-    res.status(201).json({ message: 'Order created successfully', orderId: orderResult.insertedId });
+    res.status(201).json({ message: 'Order created successfully', orderId: orderResult.insertedId, updatedProducts });
   } catch (error) {
     console.error('Error creating order:', error);
-    res.status(500).json({ error: 'An error occurred while processing the order' });
+    if (session.inTransaction()) await session.abortTransaction(); // Roll back if any error occurs
+    session.endSession();
+    res.status(500).json({ error: error.message || 'An error occurred while processing the order' });
   }
 });
+
 
 
 
