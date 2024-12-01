@@ -95,36 +95,40 @@ app.post('/orders', async (req, res) => {
 
 
 // PUT route to update any attribute of a product
-app.put("/products/:id", async (req, res) => {
+app.put('/products/:id', async (req, res) => {
   try {
     const productId = req.params.id;
-    const { availableInventory } = req.body;
+    const { availableInventory } = req.body;  // New inventory count
 
-    if (!ObjectId.isValid(productId)) {
-      return res.status(400).json({ error: "Invalid product ID." });
+    // Access the products collection
+    const productsCollection = db.collection('products');
+
+    // Find the product by ID
+    const product = await productsCollection.findOne({ _id: ObjectId(productId) });
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
     }
 
-    if (typeof availableInventory !== "number" || availableInventory < 0) {
-      return res.status(400).json({ error: "Invalid availableInventory value." });
-    }
-
-    const result = await db.collection("products").updateOne(
-      { _id: new ObjectId(productId) },
-      { $set: { availableInventory } }
+    // Update the available inventory (decrease it by 1 for each order)
+    const updatedProduct = await productsCollection.updateOne(
+      { _id: ObjectId(productId) },
+      { $set: { availableInventory } }  // Set the new availableInventory
     );
 
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: "Product not found." });
+    if (updatedProduct.modifiedCount === 0) {
+      return res.status(400).json({ message: 'Failed to update product availability' });
     }
 
-    res.status(200).json({ message: "Product updated successfully." });
-  } catch (error) {
-    console.error("Error updating product:", error);
-    res.status(500).json({ error: "Internal server error." });
+    res.status(200).json({
+      message: 'Product availability updated successfully',
+      product: { ...product, availableInventory },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error', error: err });
   }
 });
-
-
 
 
 
