@@ -114,6 +114,7 @@ app.put('/products/:id', async (req, res) => {
     );
 
 
+    
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
