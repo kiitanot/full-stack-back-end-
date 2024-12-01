@@ -80,41 +80,15 @@ app.post('/orders', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields: customerName, or phoneNumber' });
   }
 
-  const session = client.startSession();  // Start a session for transaction support
-  session.startTransaction();  // Begin transaction
-
   try {
     const order = { productIds, customerName, phoneNumber, date: new Date() };
-    const orderResult = await ordersCollection.insertOne(order, { session });
-
-    // Loop through the productIds and update inventory
-    for (let productId of productIds) {
-      const product = await productsCollection.findOne({ _id: ObjectId(productId) });
-
-      if (product && product.availableInventory > 0) {
-        // Decrease the available inventory by 1
-        await productsCollection.updateOne(
-          { _id: ObjectId(productId) },
-          { $inc: { availableInventory: -1 } },
-          { session }  // Make sure to include the session in the update
-        );
-      } else {
-        throw new Error('Product out of stock');
-      }
-    }
-
-    // Commit the transaction
-    await session.commitTransaction();
+    const orderResult = await ordersCollection.insertOne(order);
 
     // Respond with success and the order ID
     res.status(201).json({ message: 'Order created successfully', orderId: orderResult.insertedId });
   } catch (error) {
-    // Abort the transaction in case of an error
-    await session.abortTransaction();
     console.error('Error creating order:', error);
     res.status(500).json({ error: 'An error occurred while processing the order' });
-  } finally {
-    session.endSession();  // End the session
   }
 });
 
@@ -122,37 +96,29 @@ app.post('/orders', async (req, res) => {
 
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body; // Accept entire update payload
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ error: 'Invalid product ID' });
+  }
+  if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
+    return res.status(400).json({ error: 'Invalid update payload' });
+  }
+
   try {
-    const productId = req.params.id;
-    const { availableInventory } = req.body;  // New inventory count
-
-    // Access the products collection
-    const productsCollection = db.collection('products');
-
-    // Find the product by ID
-    const product = await productsCollection.findOne({ _id: ObjectId(productId) });
-
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    // Update the available inventory (decrease it by 1 for each order)
-    const updatedProduct = await productsCollection.updateOne(
-      { _id: ObjectId(productId) },
-      { $set: { availableInventory } }  // Set the new availableInventory
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData } // Dynamically apply updates
     );
 
-    if (updatedProduct.modifiedCount === 0) {
-      return res.status(400).json({ message: 'Failed to update product availability' });
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Product not found' });
     }
 
-    res.status(200).json({
-      message: 'Product availability updated successfully',
-      product: { ...product, availableInventory },
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error', error: err });
+    res.json({ message: 'Product updated successfully', updatedFields: updateData });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update product' });
   }
 });
 
