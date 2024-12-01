@@ -94,26 +94,23 @@ app.post('/orders', async (req, res) => {
 
 
 // PUT route to update any attribute of a product
-app.put('/products/:id', async (req, res) => {
+app.post('/orders', async (req, res) => {
+  const { productIds, customerName, phoneNumber } = req.body;
+
+  // Validate input
+  if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !customerName || !phoneNumber) {
+    return res.status(400).json({ error: 'Missing required fields: customerName, or phoneNumber' });
+  }
+
   try {
-      const { productId, orderedQuantity } = req.body; // Ensure you're extracting the ordered quantity
-      if (!productId || !orderedQuantity) {
-          return res.status(400).json({ message: 'productId and orderedQuantity are required' });
-      }
+    const order = { productIds, customerName, phoneNumber, date: new Date() };
+    const orderResult = await ordersCollection.insertOne(order);
 
-      // Use MongoDB's $inc operator to decrease the products_left field
-      const result = await db.collection('products').updateOne(
-          { _id: productId }, // Locate the specific document
-          { $inc: { products_left: -orderedQuantity } } // Reduce products_left by the ordered quantity
-      );
-
-      if (result.modifiedCount > 0) {
-          res.status(200).json({ message: 'Product updated successfully' });
-      } else {
-          res.status(404).json({ message: 'Product not found or no changes made' });
-      }
+    // Respond with success and the order ID
+    res.status(201).json({ message: 'Order created successfully', orderId: orderResult.insertedId });
   } catch (error) {
-      res.status(500).json({ message: 'Internal Server Error', error });
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: 'An error occurred while processing the order' });
   }
 });
 
