@@ -6,8 +6,6 @@ const cors = require('cors');
 const app = express();
 
 
-app.use(cors());
-app.use(express.json());
 
 // MongoDB connection URI and database name
 const uri = 'mongodb+srv://ko460:nCEsXelqNFBfvPGQ@webstorecluster.wu59k.mongodb.net/?retryWrites=true&w=majority&appName=WebstoreCluster';
@@ -25,7 +23,8 @@ MongoClient.connect(uri)
   })
   .catch((err) => console.error('Failed to connect to MongoDB:', err));
 
-
+app.use(cors());
+app.use(express.json());
 // Logger middleware
 const logger = (req, res, next) => {
   const now = new Date();
@@ -97,30 +96,31 @@ app.post('/orders', async (req, res) => {
 // PUT route to update any attribute of a product
 app.put('/products/:id', async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body; // Accept entire update payload
+  const { quantity } = req.body; // Assume `quantity` specifies the number of items to deduct
 
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
-  if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
-    return res.status(400).json({ error: 'Invalid update payload' });
+  if (!quantity || typeof quantity !== 'number' || quantity <= 0) {
+    return res.status(400).json({ error: 'Invalid quantity specified' });
   }
 
   try {
     const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },  // Ensure we're looking for the right product
-      { $set: updateData } // Dynamically apply updates
+      { _id: new ObjectId(id), inventory: { $gte: quantity } }, // Ensure enough stock exists
+      { $inc: { inventory: -quantity } } // Atomically decrement inventory
     );
 
     if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).json({ error: 'Product not found or insufficient inventory' });
     }
 
-    res.json({ message: 'Product updated successfully', updatedFields: updateData });
+    res.json({ message: 'Inventory updated successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update product' });
+    res.status(500).json({ error: 'Failed to update inventory' });
   }
 });
+
 
 
 
