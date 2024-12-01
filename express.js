@@ -106,13 +106,11 @@ app.put('/products/:id', async (req, res) => {
     return res.status(400).json({ error: 'Invalid update payload' });
   }
 
-  //prevemt overwriting the_id field accidentally
-  delete updateData._id;
 
   try {
     const result = await productsCollection.updateOne(
       { _id: new ObjectId(id) },  // Ensure we're looking for the right product
-      { $set: updateData } // Dynamically apply updates
+      { $inc: updateData } // Dynamically apply updates
     );
 
 
